@@ -13,9 +13,9 @@ type QPSMonitor struct {
 }
 
 func (p *QPSMonitor) Pulse() {
-	index := int32(time.Now().Second()) % p.delaySecond
+	index := int32(time.Now().Second()) % atomic.LoadInt32(&p.delaySecond)
 
-	if p.latestIndex != index {
+	if atomic.LoadInt32(&p.latestIndex) != index {
 		atomic.StoreInt32(&p.latestIndex, index)
 		atomic.StoreInt32(&p.totalQueries[p.latestIndex], 0)
 	}
@@ -25,9 +25,9 @@ func (p *QPSMonitor) Pulse() {
 
 func (p *QPSMonitor) QPS() int32 {
 	var totalCount int32 = 0
-	for i, queryCount := range p.totalQueries {
-		if int32(i) != p.latestIndex {
-			totalCount += queryCount
+	for i, _ := range p.totalQueries {
+		if int32(i) != atomic.LoadInt32(&p.latestIndex) {
+			totalCount += atomic.LoadInt32(&p.totalQueries[i])
 		}
 	}
 	return totalCount / (p.delaySecond - 1)
